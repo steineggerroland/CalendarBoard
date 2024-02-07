@@ -8,9 +8,9 @@
 #include "secrets.h"
 
 #define DATA_PIN 4
-#define NUM_LEDS 25
+#define NUM_LEDS 124
 
-const String name = "calendar-board-01";
+const String name = "calendar-board-1";
 const String mqtt_host = "openhabian.lan";
 const String mqtt_username = SECRET_MQTT_USER;
 const String mqtt_password = SECRET_MQTT_PASS;
@@ -35,22 +35,42 @@ void adaptHoursToAppointments(Appointment* appointments, int count);
 
 void messageHandler(String& topic, String& payload);
 
+void strip_is_live_show();
+
 void setup() {
   Serial.begin(9600);
   Serial.println("Booting");
   connectWlan(name, wlan_ssid, wlan_password, ota_password);
-  setupMqtt(name, mqtt_host, mqtt_username, mqtt_password, messageHandler);
 
   strip.begin(FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS));
-  for (int i = 0; i < strip.numPixels(); i++)
-  {
+  strip_is_live_show();
+
+  setupMqtt(name, mqtt_host, mqtt_username, mqtt_password, messageHandler);
+
+  for (int i = 0; i < strip.numPixels(); i++) {
     resetLed(i);
+    delay(50);
   }
-  pixels_to_hsv[24][0] = 0;
-  pixels_to_hsv[24][1] = 255;
-  pixels_to_hsv[24][2] = 5;
 
   mqtt_publish("persons/roland/calendar/request", "");
+}
+
+void strip_is_live_show() {
+  for (int i = 0; i < strip.numPixels(); i++) {
+    leds[i] = CHSV(0, 0, 0);
+  }
+  FastLED.show();
+  delay(50);
+  for (int i = 0; i < strip.numPixels(); i++) {
+    leds[i] = CHSV(0, 0, 10);
+    FastLED.show();
+    delay(50);
+  }
+  for (int i = 0; i < strip.numPixels(); i++) {
+    leds[strip.numPixels() - 1 - i] = CHSV(0, 0, 0);
+    FastLED.show();
+    delay(50);
+  }
 }
 
 void loop() {
@@ -66,7 +86,6 @@ void loop() {
     millisLastUpdatedLeds = millis();
   }
   else if (isLedUpdateInterval) {
-    pixels_to_hsv[24][0] = int(rand() * 255);
     for (int i = 0; i < strip.numPixels(); i++) {
       leds[i] = CHSV(pixels_to_hsv[i][0], pixels_to_hsv[i][1], min(50, pixels_to_hsv[i][2]));
     }
