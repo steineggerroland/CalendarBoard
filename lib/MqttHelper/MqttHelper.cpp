@@ -43,7 +43,7 @@ void connect() {
 
   Serial.println("\nMQTT connected!");
 
-  mqtt_client.subscribe("persons/roland/appointments");
+  mqtt_client.subscribe("persons/#");
   mqtt_client.subscribe("home/things/" + thing_name + "/nightmode");
 }
 
