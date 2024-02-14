@@ -33,6 +33,8 @@ void resetLed(int index);
 
 void messageHandler(String& topic, String& payload);
 
+void connectedHandler();
+
 void strip_is_live_show();
 
 void requestCalendarInformation();
@@ -50,7 +52,7 @@ void setup() {
   calendars[2] = BlinkyCalendar(62, "persons/nora/");
   calendars[3] = BlinkyCalendar(93, "persons/per/");
 
-  setupMqtt(name, mqtt_host, mqtt_username, mqtt_password, messageHandler);
+  setupMqtt(name, mqtt_host, mqtt_username, mqtt_password, messageHandler, connectedHandler);
 
   for (int i = 0; i < strip.numPixels(); i++) {
     resetLed(i);
@@ -76,6 +78,11 @@ void strip_is_live_show() {
     FastLED.show();
     delay(50);
   }
+}
+
+void connectedHandler() {
+  mqtt_subscribe("persons/#");
+  mqtt_subscribe("home/things/" + name + "/nightmode");
 }
 
 void loop() {

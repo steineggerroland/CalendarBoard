@@ -1,8 +1,11 @@
 #include <WiFiClient.h>
 #include <MQTT.h>
 
+typedef void (*ConnectedHandler)();
 
-void setupMqtt(String name, String mqtt_host, String username, String password, MQTTClientCallbackSimple messageHandler);
+
+void setupMqtt(String name, String mqtt_host, String username, String password,
+               MQTTClientCallbackSimple messageHandler, ConnectedHandler connectedHandler);
 
 void handleMqtt();
 

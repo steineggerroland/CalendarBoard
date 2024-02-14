@@ -1,20 +1,20 @@
 #include "MqttHelper.h"
 
-String thing_name = "unset-name";
 String mqtt_client_id = "unset-client-name";
 String mqtt_username = "unset-username-name";
 String mqtt_password = "unset-password-name";
 
 WiFiClient wlan_client;
 MQTTClient mqtt_client(512);
+ConnectedHandler connectedHandler;
 
 void connect();
 
-void setupMqtt(String name, String mqtt_host, String username, String password, MQTTClientCallbackSimple messageHandler) {
-  thing_name = name;
+void setupMqtt(String name, String mqtt_host, String username, String password, MQTTClientCallbackSimple messageHandler,  ConnectedHandler conHandler) {
   mqtt_username = username;
   mqtt_password = password;
   mqtt_client_id = name + "-client";
+  connectedHandler = conHandler;
   mqtt_client.begin(mqtt_host.c_str(), wlan_client);
   mqtt_client.onMessage(messageHandler);
 
@@ -43,8 +43,7 @@ void connect() {
 
   Serial.println("\nMQTT connected!");
 
-  mqtt_client.subscribe("persons/#");
-  mqtt_client.subscribe("home/things/" + thing_name + "/nightmode");
+  connectedHandler();
 }
 
 void mqtt_publish(String topic, String message) {
