@@ -45,7 +45,10 @@ void setup() {
   connectWlan(name, wlan_ssid, wlan_password, ota_password);
 
   strip.begin(FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS));
-  strip_is_live_show();
+  for (int i = 0; i < strip.numPixels(); i++) {
+    leds[i] = CHSV(0, 0, 0);
+  }
+  FastLED.show();
 
   calendars[0] = BlinkyCalendar(0, "persons/roland/");
   calendars[1] = BlinkyCalendar(31, "persons/christina/");
@@ -54,12 +57,11 @@ void setup() {
 
   setupMqtt(name, mqtt_host, mqtt_username, mqtt_password, messageHandler, connectedHandler);
 
+  strip_is_live_show();
+
   for (int i = 0; i < strip.numPixels(); i++) {
     resetLed(i);
-    delay(50);
   }
-
-  requestCalendarInformation();
 }
 
 void strip_is_live_show() {
@@ -67,22 +69,32 @@ void strip_is_live_show() {
     leds[i] = CHSV(0, 0, 0);
   }
   FastLED.show();
-  delay(50);
-  for (int i = 0; i < strip.numPixels(); i++) {
-    leds[i] = CHSV(0, 0, 10);
+
+  for (int step = 0; step < 32; step++) {
+    for (int cal = 0; cal < NUM_CALENDARDS; cal++) {
+      int offset = cal * 31;
+      if (step == 0) {
+        leds[15 + offset] = CHSV(0, 0, 10);
+      } else if (step <= 15) {
+        leds[15 - step + offset] = CHSV(0, 0, 10);
+        leds[15 + step + offset] = CHSV(0, 0, 10);
+      } else if (step == 16) {
+        leds[15 + offset] = CHSV(0, 0, 0);
+      } else {
+        int internal_step = step - 16;
+        leds[15 - internal_step + offset] = CHSV(0, 0, 0);
+        leds[15 + internal_step + offset] = CHSV(0, 0, 0);
+      }
+    }
+    delay(200);
     FastLED.show();
-    delay(50);
-  }
-  for (int i = 0; i < strip.numPixels(); i++) {
-    leds[strip.numPixels() - 1 - i] = CHSV(0, 0, 0);
-    FastLED.show();
-    delay(50);
   }
 }
 
 void connectedHandler() {
   mqtt_subscribe("persons/#");
   mqtt_subscribe("home/things/" + name + "/nightmode");
+  requestCalendarInformation();
 }
 
 void loop() {
@@ -151,7 +163,7 @@ void resetLed(int index) {
 }
 
 void requestCalendarInformation() {
-  for (int i=NUM_CALENDARDS; i<NUM_CALENDARDS; i++) {
+  for (int i=0; i<NUM_CALENDARDS; i++) {
     mqtt_publish(calendars[i].mqttTopic + "calendar/request", "");
   }
 }
