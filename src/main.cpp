@@ -35,6 +35,8 @@ void messageHandler(String& topic, String& payload);
 
 void strip_is_live_show();
 
+void requestCalendarInformation();
+
 void setup() {
   Serial.begin(9600);
   Serial.println("Booting");
@@ -55,9 +57,7 @@ void setup() {
     delay(50);
   }
 
-  for (int i=NUM_CALENDARDS; i<NUM_CALENDARDS; i++) {
-    mqtt_publish(calendars[i].mqttTopic + "calendar/request", "");
-  }
+  requestCalendarInformation();
 }
 
 void strip_is_live_show() {
@@ -132,6 +132,7 @@ void messageHandler(String& topic, String& payload) {
     else {
       nightmode = false;
       mqtt_subscribe("persons/#");
+      requestCalendarInformation();
     }
   }
 }
@@ -140,4 +141,10 @@ void resetLed(int index) {
   pixels_to_hsv[index][0] = 0;
   pixels_to_hsv[index][1] = 0;
   pixels_to_hsv[index][2] = 0;
+}
+
+void requestCalendarInformation() {
+  for (int i=NUM_CALENDARDS; i<NUM_CALENDARDS; i++) {
+    mqtt_publish(calendars[i].mqttTopic + "calendar/request", "");
+  }
 }
