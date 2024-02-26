@@ -2,9 +2,7 @@
 
 Time::Time(int h, int m) : hour(h), minute(m) {}
 
-ColorHSV::ColorHSV(int h, int s, int b) : hue(h), saturation(s), brightness(b) {}
-
-Appointment::Appointment(Time b, Time e, String t, ColorHSV c) : begin(b), end(e), title(t), color(c) {}
+Appointment::Appointment(Time b, Time e, String t, CRGB c) : begin(b), end(e), title(t), color(c) {}
 
 bool Appointment::isWithinTimeRange(Time startRange, Time endRange) {
   bool startsBeforeRangeEnds = (begin.hour < endRange.hour) || (begin.hour == endRange.hour && begin.minute < endRange.minute);
@@ -28,7 +26,7 @@ Appointment* parseAppointments(JSONVar appointments, int count) {
     Time end = parseTimeFromISO8601((const char*)appointment["end"]);
     String title = (const char*)appointment["title"];
 
-    parsedAppointments[i] = Appointment(begin, end, title, ColorHSV(int(rand() * 255), 255, 255));
+    parsedAppointments[i] = Appointment(begin, end, title, CHSV(int(rand() * 255), 100, 100));
   }
 
   return parsedAppointments;
@@ -36,16 +34,16 @@ Appointment* parseAppointments(JSONVar appointments, int count) {
 
 int findAppointmentInRange(Appointment* appointments, int count, Time start, Time end);
 
-BlinkyCalendar::BlinkyCalendar(int s, String t) : startIndex(s), mqttTopic(t), ledsForDay{ColorHSV()} {}
-BlinkyCalendar::BlinkyCalendar() : startIndex(0), mqttTopic(""), ledsForDay{ColorHSV()} {}
+BlinkyCalendar::BlinkyCalendar(int s, String t) : startIndex(s), mqttTopic(t), ledsForDay{CRGB::Black} {}
+BlinkyCalendar::BlinkyCalendar() : startIndex(0), mqttTopic(""), ledsForDay{CRGB::Black} {}
 
 void BlinkyCalendar::replaceAppointments(Appointment* appointments, int count) {
     for (int hour = 0; hour < 24; hour++) {
         int match_index = findAppointmentInRange(appointments, count, Time(hour, 0), Time(hour + 1, 0));
         if (match_index >= 0) {
-            ledsForDay[hour] = ColorHSV(appointments[match_index].color.hue, appointments[match_index].color.saturation, appointments[match_index].color.brightness);
+            ledsForDay[hour] = appointments[match_index].color;
         } else {
-            ledsForDay[hour] = ColorHSV(0, 0, 0);
+            ledsForDay[hour] = CRGB::Black;
         }
     }
 }
