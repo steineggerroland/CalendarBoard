@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <FastLED_NeoPixel.h>
+#include <FastLED.h>
 #include <Arduino_JSON.h>
 
 #include <Calendar.h>
@@ -22,8 +22,6 @@ const String ota_password = OTA_PASS;
 BlinkyCalendar calendars[NUM_CALENDARDS]; // initialized in setup()
 
 CRGB leds[NUM_LEDS];
-FastLED_NeoPixel_Variant strip(leds, NUM_LEDS);
-int pixels_to_hsv[NUM_LEDS][3];
 
 unsigned long millisLastMessageSent = 0;
 unsigned long millisLastUpdatedLeds = 0;
@@ -44,9 +42,11 @@ void setup() {
   Serial.println("Booting");
   connectWlan(name, wlan_ssid, wlan_password, ota_password);
 
-  strip.begin(FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS));
-  for (int i = 0; i < strip.numPixels(); i++) {
-    leds[i] = CHSV(0, 0, 0);
+  FastLED.addLeds<WS2812B, DATA_PIN, RGB>(leds, NUM_LEDS);
+  FastLED.setMaxRefreshRate(400);
+  FastLED.setBrightness(30);
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = CRGB::Black;
   }
   FastLED.show();
 
@@ -58,35 +58,26 @@ void setup() {
   setupMqtt(name, mqtt_host, mqtt_username, mqtt_password, messageHandler, connectedHandler);
 
   strip_is_live_show();
-
-  for (int i = 0; i < strip.numPixels(); i++) {
-    resetLed(i);
-  }
 }
 
 void strip_is_live_show() {
-  for (int i = 0; i < strip.numPixels(); i++) {
-    leds[i] = CHSV(0, 0, 0);
-  }
-  FastLED.show();
-
   for (int step = 0; step < 32; step++) {
     for (int cal = 0; cal < NUM_CALENDARDS; cal++) {
       int offset = cal * 31;
       if (step == 0) {
-        leds[15 + offset] = CHSV(0, 0, 10);
+        leds[15 + offset] = CRGB::DarkBlue;
       } else if (step <= 15) {
-        leds[15 - step + offset] = CHSV(0, 0, 10);
-        leds[15 + step + offset] = CHSV(0, 0, 10);
+        leds[15 - step + offset] = CRGB::DarkBlue;
+        leds[15 + step + offset] = CRGB::DarkBlue;
       } else if (step == 16) {
-        leds[15 + offset] = CHSV(0, 0, 0);
+        leds[15 + offset] = CRGB::Black;
       } else {
         int internal_step = step - 16;
-        leds[15 - internal_step + offset] = CHSV(0, 0, 0);
-        leds[15 + internal_step + offset] = CHSV(0, 0, 0);
+        leds[15 - internal_step + offset] = CRGB::Black;
+        leds[15 + internal_step + offset] = CRGB::Black;
       }
     }
-    delay(200);
+    delay(100);
     FastLED.show();
   }
 }
@@ -100,21 +91,6 @@ void connectedHandler() {
 void loop() {
   handleOta();
   handleMqtt();
-
-  bool isLedUpdateInterval = millis() - millisLastUpdatedLeds > 1000;
-  if (nightmode && isLedUpdateInterval) {
-    for (int i = 0; i < strip.numPixels(); i++) {
-      leds[i] = CHSV(0, 0, 0);
-    }
-    FastLED.show();
-    millisLastUpdatedLeds = millis();
-  } else if (isLedUpdateInterval) {
-    for (int i = 0; i < strip.numPixels(); i++) {
-      leds[i] = CHSV(pixels_to_hsv[i][0], pixels_to_hsv[i][1], min(50, pixels_to_hsv[i][2]));
-    }
-    FastLED.show();
-    millisLastUpdatedLeds = millis();
-  }
 
   if (millis() - millisLastMessageSent > 25000) {
     mqtt_publish("home/things/" + name + "/state", "{\"online_status\":\"online\"}");
@@ -134,18 +110,21 @@ void messageHandler(String& topic, String& payload) {
         calendars[i].replaceAppointments(appointments, count);
         for (int ledIndex = 0; ledIndex < 24; ledIndex++) {
           int stripIndex = calendars[i].startIndex + ledIndex;
-          pixels_to_hsv[stripIndex][0] = calendars[i].ledsForDay[ledIndex].hue;
-          pixels_to_hsv[stripIndex][1] = calendars[i].ledsForDay[ledIndex].saturation;
-          pixels_to_hsv[stripIndex][2] = calendars[i].ledsForDay[ledIndex].brightness;
+          leds[stripIndex] = calendars[i].ledsForDay[ledIndex];
         }
         delete[] appointments;
       }
+      FastLED.show();
     }
   }
   
   if (topic == "home/things/" + name + "/nightmode") {
     if (payload != "off") {
       nightmode = true;
+      for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i] = CRGB::Black;
+      }
+      FastLED.show();
       mqtt_unsubscribe("persons/#");
     }
     else {
@@ -154,12 +133,6 @@ void messageHandler(String& topic, String& payload) {
       requestCalendarInformation();
     }
   }
-}
-
-void resetLed(int index) {
-  pixels_to_hsv[index][0] = 0;
-  pixels_to_hsv[index][1] = 0;
-  pixels_to_hsv[index][2] = 0;
 }
 
 void requestCalendarInformation() {
