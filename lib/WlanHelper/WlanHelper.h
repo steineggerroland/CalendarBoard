@@ -7,3 +7,5 @@
 void connectWlan(String name, String ssid, String password, String ota_password);
 
 void handleOta();
+
+String getIp();

@@ -21,3 +21,7 @@ void connectWlan(String name, String ssid, String password, String ota_password)
 void handleOta() {
   ArduinoOTA.handle();
 }
+
+String getIp() {
+  return WiFi.localIP().toString();
+}
