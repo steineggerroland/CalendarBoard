@@ -14,11 +14,11 @@ class Appointment {
 public:
   Time begin;
   Time end;
-  String title;
+  String summary;
   CRGB color;
 
   Appointment(Time b, Time e, String t, CRGB c);
-  Appointment() : begin(0, 0), end(0, 0), title(""), color(CRGB::Black) {};
+  Appointment() : begin(0, 0), end(0, 0), summary(""), color(CRGB::Black) {};
 
   bool isWithinTimeRange(Time s, Time e);
 };
@@ -38,3 +38,4 @@ public:
 
     void replaceAppointments(Appointment* appointments, int count);
 };
+
