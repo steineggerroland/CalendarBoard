@@ -5,7 +5,7 @@ String mqtt_username = "unset-username-name";
 String mqtt_password = "unset-password-name";
 
 WiFiClient wlan_client;
-MQTTClient mqtt_client(512);
+MQTTClient mqtt_client(1024, 256);
 ConnectedHandler connectedHandler;
 
 void connect();
