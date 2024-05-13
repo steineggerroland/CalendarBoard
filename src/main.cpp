@@ -25,9 +25,12 @@ CRGB leds[NUM_LEDS];
 
 unsigned long millisLastMessageSent = 0;
 unsigned long millisLastUpdatedLeds = 0;
+unsigned long millisForTimer = 0;
+int time_hours;
+int time_minutes = 0;
+int time_seconds = 0;
+CRGB highlightColor = CRGB::DarkRed;
 bool nightmode = false;
-
-void resetLed(int index);
 
 void messageHandler(String& topic, String& payload);
 
@@ -35,20 +38,23 @@ void connectedHandler();
 
 void strip_is_live_show();
 
-void requestCalendarInformation();
+void show_leds();
+
+void increaseSecondsOfTime();
+
+void blinkEverySecond();
 
 void setup() {
   Serial.begin(9600);
   Serial.println("Booting");
   connectWlan(name, wlan_ssid, wlan_password, ota_password);
 
-  FastLED.addLeds<WS2812B, DATA_PIN, RGB>(leds, NUM_LEDS);
-  FastLED.setMaxRefreshRate(400);
-  FastLED.setBrightness(30);
+  FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.setBrightness(10);
   for (int i = 0; i < NUM_LEDS; i++) {
     leds[i] = CRGB::Black;
   }
-  FastLED.show();
+  show_leds();
 
   calendars[0] = BlinkyCalendar(0, "persons/roland/");
   calendars[1] = BlinkyCalendar(31, "persons/christina/");
@@ -63,7 +69,7 @@ void setup() {
 void strip_is_live_show() {
   for (int step = 0; step < 32; step++) {
     for (int cal = 0; cal < NUM_CALENDARDS; cal++) {
-      int offset = cal * 31;
+      int offset = int(cal * 31);
       if (step == 0) {
         leds[15 + offset] = CRGB::DarkBlue;
       } else if (step <= 15) {
@@ -85,15 +91,20 @@ void strip_is_live_show() {
 void connectedHandler() {
   mqtt_subscribe("persons/#");
   mqtt_subscribe("home/things/" + name + "/nightmode");
-  requestCalendarInformation();
+  mqtt_subscribe("home/things/time/now");
 }
 
 void loop() {
   handleOta();
   handleMqtt();
+  if (millis() - millisForTimer > 1000) {
+    blinkEverySecond();
+    increaseSecondsOfTime();
+    millisForTimer = millis();
+  }
 
   if (millis() - millisLastMessageSent > 25000) {
-    mqtt_publish("home/things/" + name + "/state", "{\"online_status\":\"online\"}");
+    mqtt_publish("home/things/" + name + "/state", "{\"online_status\":\"online\",\"ip\":\""+getIp()+"\"}");
     millisLastMessageSent = millis();
   }
 }
@@ -110,11 +121,12 @@ void messageHandler(String& topic, String& payload) {
         calendars[i].replaceAppointments(appointments, count);
         for (int ledIndex = 0; ledIndex < 24; ledIndex++) {
           int stripIndex = calendars[i].startIndex + ledIndex;
-          leds[stripIndex] = calendars[i].ledsForDay[ledIndex];
+          CRGB color = calendars[i].ledsForDay[ledIndex];
+          leds[stripIndex].setRGB(color.red, color.green, color.blue);
         }
         delete[] appointments;
       }
-      FastLED.show();
+      show_leds();
     }
   }
   
@@ -124,19 +136,65 @@ void messageHandler(String& topic, String& payload) {
       for (int i = 0; i < NUM_LEDS; i++) {
         leds[i] = CRGB::Black;
       }
-      FastLED.show();
+      show_leds();
       mqtt_unsubscribe("persons/#");
     }
     else {
       nightmode = false;
       mqtt_subscribe("persons/#");
-      requestCalendarInformation();
     }
+  } else if (topic == "home/things/time/now") {
+    time_hours = payload.substring(0,2).toInt();
+    time_minutes = payload.substring(3,5).toInt();
+    time_seconds = payload.substring(6,8).toInt();
   }
 }
 
-void requestCalendarInformation() {
-  for (int i=0; i<NUM_CALENDARDS; i++) {
-    mqtt_publish(calendars[i].mqttTopic + "calendar/request", "");
+void show_leds() {
+  if (millis() - millisLastUpdatedLeds < 200) {
+    delay(250);
+    millisLastUpdatedLeds = millis();
+  }
+  FastLED.show();
+}
+
+bool isHighlightedForEverySecond = false;
+int highlightedLedIndex = 24;
+void blinkEverySecond() {
+  if (isHighlightedForEverySecond) {
+    CRGB color = CRGB::Black;
+    for (int i = 0; i < NUM_CALENDARDS; i++) {
+      if (time_hours) {
+        color = calendars[i].ledsForDay[time_hours];
+      }
+      leds[calendars[i].startIndex + highlightedLedIndex] = color;
+    }
+  } else {
+    CRGB color = highlightColor;
+    if (time_hours) {
+      highlightedLedIndex = time_hours;
+    }
+    for (int i = 0; i < NUM_CALENDARDS; i++) {
+      leds[calendars[i].startIndex + highlightedLedIndex] = color;
+    }
+  }
+  show_leds();
+  isHighlightedForEverySecond = !isHighlightedForEverySecond;
+}
+
+void increaseSecondsOfTime() {
+  time_seconds++;
+  if (time_seconds >= 60) {
+    time_seconds = 0;
+    time_minutes++;
+    if (time_minutes >= 60) {
+      time_minutes = 0;
+      if (time_hours) {
+        time_hours++;
+        if (time_hours >= 24) {
+          time_hours = 0;
+        }
+      }
+    }
   }
 }
