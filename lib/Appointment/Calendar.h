@@ -36,6 +36,6 @@ public:
     BlinkyCalendar(int startLed, String mqttTopic);
     BlinkyCalendar();
 
-    void replaceAppointments(Appointment* appointments, int count);
+    bool replaceAppointments(Appointment* appointments, int count);
 };
 

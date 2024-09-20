@@ -26,7 +26,7 @@ CRGB leds[NUM_LEDS];
 unsigned long millisLastMessageSent = 0;
 unsigned long millisLastUpdatedLeds = 0;
 unsigned long millisForTimer = 0;
-int time_hours;
+int time_hours = -1;
 int time_minutes = 0;
 int time_seconds = 0;
 CRGB highlightColor = CRGB::DarkRed;
@@ -50,7 +50,8 @@ void setup() {
   connectWlan(name, wlan_ssid, wlan_password, ota_password);
 
   FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
-  FastLED.setBrightness(10);
+  FastLED.setCorrection(CRGB(210,255,150));
+  //FastLED.setBrightness(25);
   for (int i = 0; i < NUM_LEDS; i++) {
     leds[i] = CRGB::Black;
   }
@@ -118,26 +119,33 @@ void messageHandler(String& topic, String& payload) {
       if (request.hasOwnProperty("appointments")) {
         int count = request["appointments"].length();
         Appointment* appointments = parseAppointments(request["appointments"], count);
-        calendars[i].replaceAppointments(appointments, count);
+        bool changed = calendars[i].replaceAppointments(appointments, count);
+        delete[] appointments;
+        if (!changed) return;
         for (int ledIndex = 0; ledIndex < 24; ledIndex++) {
           int stripIndex = calendars[i].startIndex + ledIndex;
           CRGB color = calendars[i].ledsForDay[ledIndex];
-          leds[stripIndex].setRGB(color.red, color.green, color.blue);
+          leds[stripIndex] = color;
+          if (ledIndex < time_hours) {
+            mqtt_publish("debug/calendar-board-1", "event is over" + calendars[i].startIndex);
+            if (calendars[i].ledsForDay[ledIndex].getAverageLight() > 0) {
+              leds[stripIndex] = CRGB::DarkGray;
+            }
+          }
         }
-        delete[] appointments;
+        show_leds();
       }
-      show_leds();
     }
   }
   
   if (topic == "home/things/" + name + "/nightmode") {
     if (payload != "off") {
       nightmode = true;
+      mqtt_unsubscribe("persons/#");
       for (int i = 0; i < NUM_LEDS; i++) {
         leds[i] = CRGB::Black;
       }
       show_leds();
-      mqtt_unsubscribe("persons/#");
     }
     else {
       nightmode = false;
@@ -164,14 +172,14 @@ void blinkEverySecond() {
   if (isHighlightedForEverySecond) {
     CRGB color = CRGB::Black;
     for (int i = 0; i < NUM_CALENDARDS; i++) {
-      if (time_hours) {
+      if (time_hours >= 0 && time_hours <= 23) {
         color = calendars[i].ledsForDay[time_hours];
       }
       leds[calendars[i].startIndex + highlightedLedIndex] = color;
     }
   } else {
     CRGB color = highlightColor;
-    if (time_hours) {
+    if (time_hours >= 0 && time_hours <= 23) {
       highlightedLedIndex = time_hours;
     }
     for (int i = 0; i < NUM_CALENDARDS; i++) {
