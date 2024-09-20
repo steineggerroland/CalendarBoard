@@ -27,7 +27,13 @@ Appointment* parseAppointments(JSONVar appointments, int count) {
     Time end = parseTimeFromISO8601((const char*)appointment["end_at"]);
     String summary = (const char*)appointment["summary"];
 
-    parsedAppointments[i] = Appointment(begin, end, "summary", CRGB::Honeydew);
+    CRGB color = CRGB::Honeydew;
+    const char* colorHex = (const char*)appointment["color"];
+    if (colorHex) {
+      long number = (long) strtol(&colorHex[0], NULL, 16);
+      color = CRGB((number >> 16) & 0xFF, (number >> 8) & 0xFF, number & 0xFF);
+    }
+    parsedAppointments[i] = Appointment(begin, end, "summary", color);
   }
 
   return parsedAppointments;
@@ -38,15 +44,19 @@ int findAppointmentInRange(Appointment* appointments, int count, Time start, Tim
 BlinkyCalendar::BlinkyCalendar(int s, String t) : startIndex(s), mqttTopic(t), ledsForDay{CRGB::Black} {}
 BlinkyCalendar::BlinkyCalendar() : startIndex(0), mqttTopic(""), ledsForDay{CRGB::Black} {}
 
-void BlinkyCalendar::replaceAppointments(Appointment* appointments, int count) {
-    for (int hour = 0; hour < 24; hour++) {
-        int match_index = findAppointmentInRange(appointments, count, Time(hour, 0), Time(hour + 1, 0));
-        if (match_index >= 0) {
-            ledsForDay[hour] = appointments[match_index].color;
-        } else {
-            ledsForDay[hour] = CRGB::Black;
-        }
+bool BlinkyCalendar::replaceAppointments(Appointment* appointments, int count) {
+  bool changed = false;
+  for (int hour = 0; hour < 24; hour++) {
+    int match_index = findAppointmentInRange(appointments, count, Time(hour, 0), Time(hour + 1, 0));
+    if (match_index >= 0) {
+      changed = changed || (ledsForDay[hour] != appointments[match_index].color);
+      ledsForDay[hour] = appointments[match_index].color;
+    } else {
+      changed = changed || (ledsForDay[hour] != CRGB::Black);
+      ledsForDay[hour] = CRGB::Black;
     }
+  }
+  return changed;
 }
 
 int findAppointmentInRange(Appointment* appointments, int count, Time start, Time end) {
