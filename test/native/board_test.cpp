@@ -44,6 +44,14 @@ int main() {
     auto payload = read("test/fixtures/day.json");
     Day day; assert(decodeDay(payload.c_str(), "Europe/Berlin", day));
     assert(day.available && day.slots[14] == Slot::Important);
+    assert(day.allDay == Slot::Empty);
+    auto withAllDay = payload;
+    withAllDay.replace(withAllDay.find("\"all_day\":null"), 14, "\"all_day\":\"ff0000\"");
+    Day dayWithAllDay; assert(decodeDay(withAllDay.c_str(), "Europe/Berlin", dayWithAllDay));
+    assert(dayWithAllDay.allDay == Slot::Important);
+    auto invalidAllDay = withAllDay;
+    invalidAllDay.replace(invalidAllDay.find("\"all_day\":\"") + 11, 6, "00ff00");
+    assert(!decodeDay(invalidAllDay.c_str(), "Europe/Berlin", dayWithAllDay));
     assert(!decodeDay(payload.c_str(), "UTC", day));
     auto invalid = payload; invalid.replace(invalid.find("ff0000"), 6, "00ff00");
     assert(!decodeDay(invalid.c_str(), "Europe/Berlin", day));
@@ -60,6 +68,9 @@ int main() {
                      "\"generated_at\":\"2026-09-11T12:00:00Z\",\"source_checked_at\":null,"
                      "\"status\":\"unavailable\",\"slots\":null}", "Europe/Berlin", unknown));
     assert(!unknown.available);
+    assert(!decodeDay("{\"schema_version\":1,\"timezone\":\"Europe/Berlin\",\"date\":\"2026-09-11\","
+                      "\"generated_at\":\"2026-09-11T12:00:00Z\",\"source_checked_at\":null,"
+                      "\"status\":\"unavailable\",\"all_day\":\"00ff00\",\"slots\":null}", "Europe/Berlin", unknown));
     auto time = read("test/fixtures/time.json");
     assert(decodeTime(time.c_str(), "Europe/Berlin", t));
     auto badTime = time; badTime.replace(badTime.find("14:00:00"), 8, "13:00:00");
@@ -71,7 +82,10 @@ int main() {
     clock.advance(1000); assert(render(row, 14, clock, false) == 0xff0000);
     assert(render(row, 14, clock, true) == 0);
     row.receive(day, clock.date()); assert(render(row, 14, clock, false) == 0xff0000);
-    clock.advance(3601000); assert(render(row, 14, clock, false) == 0xa9a9a9);
+    clock.advance(3601000); assert(render(row, 14, clock, false) == 0x202020);
+    row.receive(dayWithAllDay, clock.date());
+    assert(render(row, Hours, clock, false) == 0xff0000);
+    assert(render(row, Hours, clock, true) == 0);
     Day unavailable; unavailable.date = day.date; row.receive(unavailable, day.date);
     assert(row.displayed.available);
     Day old = day; old.date--; row.receive(old, day.date); assert(row.displayed.date == day.date);
@@ -79,7 +93,7 @@ int main() {
         for (size_t r = 0; r < rows; ++r)
             for (size_t position = 0; position < LedsPerRow; ++position) {
                 assert(stripIndex(r, position) < rows * LedsPerRow);
-                if (position >= Hours) assert(render(row, position, clock, false) == 0);
+                if (position > Hours) assert(render(row, position, clock, false) == 0);
             }
     clock.synchronize(stamp("2026-09-12T12:00:00Z"), 0);
     assert(render(row, 14, clock, false) == 0xff0000); // retain old day without today's overlays

@@ -76,12 +76,17 @@ void Row::activate(int currentDate) {
     }
 }
 uint32_t render(const Row& row, size_t position, const Clock& clock, bool night) {
-    if (night || position >= Hours || !clock.valid() || !row.displayed.available) return 0;
+    if (night || position >= LedsPerRow || !clock.valid() || !row.displayed.available) return 0;
+    if (position == Hours) {
+        return row.displayed.allDay == Slot::Important ? 0xff0000 :
+               row.displayed.allDay == Slot::Normal ? 0xffffff : 0;
+    }
+    if (position > Hours) return 0;
     Slot slot = row.displayed.slots[position];
     uint32_t color = slot == Slot::Important ? 0xff0000 : slot == Slot::Normal ? 0xffffff : 0;
     if (row.displayed.date == clock.date()) {
         tm now = clock.local();
-        if (slot != Slot::Empty && position < static_cast<size_t>(now.tm_hour)) color = 0xa9a9a9;
+        if (slot != Slot::Empty && position < static_cast<size_t>(now.tm_hour)) color = 0x202020;
         if (position == static_cast<size_t>(now.tm_hour) && now.tm_sec % 2 == 0) color = 0x8b0000;
     }
     return color;

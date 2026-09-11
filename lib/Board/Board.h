@@ -10,6 +10,7 @@ enum class Slot : uint8_t { Empty, Normal, Important };
 struct Day {
     int date = 0; // YYYYMMDD, local date
     Slot slots[Hours] = {};
+    Slot allDay = Slot::Empty;
     bool available = false;
     bool stale = false;
 };

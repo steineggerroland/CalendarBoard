@@ -17,6 +17,12 @@ const char* stringField(const cJSON* root, const char* name) {
     return cJSON_IsString(item) ? item->valuestring : nullptr;
 }
 bool equals(const char* a, const char* b) { return a && b && strcmp(a, b) == 0; }
+bool decodeColor(const cJSON* value, Slot& slot) {
+    if (cJSON_IsNull(value)) { slot = Slot::Empty; return true; }
+    if (cJSON_IsString(value) && equals(value->valuestring, "ffffff")) { slot = Slot::Normal; return true; }
+    if (cJSON_IsString(value) && equals(value->valuestring, "ff0000")) { slot = Slot::Important; return true; }
+    return false;
+}
 bool envelope(const cJSON* root, const char* zone) {
     if (!cJSON_IsObject(root)) return false;
     for (const cJSON* a = root->child; a; a = a->next)
@@ -35,8 +41,11 @@ bool decodeDay(const char* payload, const char* timezone, Day& day) {
         !parseTimestamp(stringField(doc.root, "generated_at"), generated)) return false;
     const char* status = stringField(doc.root, "status");
     const cJSON* slots = field(doc.root, "slots");
+    const cJSON* allDay = field(doc.root, "all_day");
     const cJSON* source = field(doc.root, "source_checked_at");
     if (!source || (!cJSON_IsNull(source) && !parseTimestamp(stringField(doc.root, "source_checked_at"), checked))) return false;
+    // Optional for a rolling firmware update; missing means no all-day event.
+    if (allDay && !decodeColor(allDay, candidate.allDay)) return false;
     if (equals(status, "unavailable")) {
         if (!cJSON_IsNull(slots)) return false;
     } else {
@@ -46,10 +55,7 @@ bool decodeDay(const char* payload, const char* timezone, Day& day) {
         candidate.stale = equals(status, "stale");
         for (size_t hour = 0; hour < Hours; ++hour) {
             const cJSON* slot = cJSON_GetArrayItem(slots, hour);
-            if (cJSON_IsNull(slot)) candidate.slots[hour] = Slot::Empty;
-            else if (cJSON_IsString(slot) && equals(slot->valuestring, "ffffff")) candidate.slots[hour] = Slot::Normal;
-            else if (cJSON_IsString(slot) && equals(slot->valuestring, "ff0000")) candidate.slots[hour] = Slot::Important;
-            else return false;
+            if (!decodeColor(slot, candidate.slots[hour])) return false;
         }
     }
     day = candidate;
