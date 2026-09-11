@@ -1,5 +1,6 @@
 #include "MqttHelper.h"
 
+String mqtt_hostname;
 String mqtt_client_id = "unset-client-name";
 String mqtt_username = "unset-username-name";
 String mqtt_password = "unset-password-name";
@@ -18,7 +19,8 @@ void setupMqtt(String name, String mqtt_host, String username, String password, 
   mqtt_password = password;
   mqtt_client_id = name + "-client";
   connectedHandler = conHandler;
-  mqtt_client.begin(mqtt_host.c_str(), wlan_client);
+  mqtt_hostname = mqtt_host; // MQTTClient retains the hostname pointer.
+  mqtt_client.begin(mqtt_hostname.c_str(), wlan_client);
   mqtt_client.onMessage(messageHandler);
 
   connect();
@@ -54,14 +56,17 @@ void connect() {
   Serial.print(".");
 }
 
-void mqtt_publish(String topic, String message) {
-  mqtt_client.publish(topic, message);
+bool mqtt_publish(String topic, String message) {
+  return mqtt_client.publish(topic, message);
 }
 
-void mqtt_subscribe(String pattern) {
-  mqtt_client.subscribe(pattern);
+bool mqtt_subscribe(String pattern) {
+  return mqtt_client.subscribe(pattern, 1);
 }
 
-void mqtt_unsubscribe(String pattern) {
-  mqtt_client.unsubscribe(pattern);
+bool mqtt_unsubscribe(String pattern) {
+  return mqtt_client.unsubscribe(pattern);
 }
+
+bool mqtt_connected() { return mqtt_client.connected(); }
+void mqtt_disconnect() { mqtt_client.disconnect(); }

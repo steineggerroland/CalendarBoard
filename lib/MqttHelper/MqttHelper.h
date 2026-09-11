@@ -1,3 +1,4 @@
+#pragma once
 #include <WiFiClient.h>
 #include <MQTT.h>
 
@@ -9,8 +10,11 @@ void setupMqtt(String name, String mqtt_host, String username, String password,
 
 void handleMqtt();
 
-void mqtt_publish(String topic, String message);
+bool mqtt_publish(String topic, String message);
 
-void mqtt_subscribe(String pattern); 
+bool mqtt_subscribe(String pattern);
 
-void mqtt_unsubscribe(String pattern);
+bool mqtt_unsubscribe(String pattern);
+
+bool mqtt_connected();
+void mqtt_disconnect();

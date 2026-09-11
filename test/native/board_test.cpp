@@ -17,6 +17,18 @@ int main() {
     assert(!parseTimestamp("2026-09-11T24:00:00Z", t));
     assert(!parseTimestamp("2026-09-11T14:00:00+14:30", t));
     assert(stamp("2026-09-11T14:00:00+02:00") == stamp("2026-09-11T12:00:00Z"));
+    Synchronization<2> sync;
+    assert(sync.due(0, 0)); sync.attempted(0);
+    assert(!sync.due(4999, 0)); assert(sync.due(5000, 0)); sync.attempted(5000);
+    assert(!sync.due(34999, 0)); assert(sync.due(35000, 0));
+    sync.receivedTime(); sync.receivedDay(0, 20260911);
+    assert(sync.due(35000, 20260911)); sync.attempted(35000);
+    assert(sync.due(40000, 20260911)); // one missing row
+    sync.receivedDay(1, 20260911); assert(!sync.due(100000, 20260911));
+    assert(sync.due(100001, 20260912)); sync.attempted(100001);
+    sync.receivedDay(0, 20260912); sync.receivedDay(1, 20260912);
+    assert(!sync.due(200000, 20260912));
+    sync.connected(); assert(sync.due(200000, 20260912));
     Clock clock;
     clock.synchronize(stamp("2026-09-10T22:59:59Z"), 0xfffffff0);
     clock.advance(0x7c0); // rollover, 2000ms
@@ -38,6 +50,16 @@ int main() {
     assert(day.slots[14] == Slot::Important); // failed parsing did not mutate
     assert(!decodeDay((payload + "junk").c_str(), "Europe/Berlin", day));
     assert(!decodeDay(std::string(769, ' ').c_str(), "Europe/Berlin", day));
+    auto duplicate = payload;
+    duplicate.insert(1, "\"schema_version\":1,");
+    assert(!decodeDay(duplicate.c_str(), "Europe/Berlin", day));
+    auto shortSlots = payload; shortSlots.erase(shortSlots.find("null,"), 5);
+    assert(!decodeDay(shortSlots.c_str(), "Europe/Berlin", day));
+    Day unknown;
+    assert(decodeDay("{\"schema_version\":1,\"timezone\":\"Europe/Berlin\",\"date\":\"2026-09-11\","
+                     "\"generated_at\":\"2026-09-11T12:00:00Z\",\"source_checked_at\":null,"
+                     "\"status\":\"unavailable\",\"slots\":null}", "Europe/Berlin", unknown));
+    assert(!unknown.available);
     auto time = read("test/fixtures/time.json");
     assert(decodeTime(time.c_str(), "Europe/Berlin", t));
     auto badTime = time; badTime.replace(badTime.find("14:00:00"), 8, "13:00:00");

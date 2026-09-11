@@ -34,6 +34,38 @@ private:
     uint32_t last_ = 0;
     uint32_t remainder_ = 0;
 };
+// Per-row replies prevent a valid clock from hiding missing day snapshots.
+template<size_t RowCount>
+class Synchronization {
+public:
+    void connected() {
+        immediate_ = true;
+        attempts_ = 0;
+        timeReceived_ = false;
+        for (size_t row = 0; row < RowCount; ++row) replies_[row] = 0;
+    }
+    void receivedTime() { timeReceived_ = true; }
+    void receivedDay(size_t row, int date) { if (row < RowCount) replies_[row] = date; }
+    bool due(uint32_t now, int date) {
+        if (date != date_) { date_ = date; immediate_ = true; attempts_ = 0; }
+        bool complete = timeReceived_ && date != 0;
+        for (size_t row = 0; row < RowCount; ++row) complete = complete && replies_[row] == date;
+        uint32_t interval = attempts_ < 2 ? 5000 : 30000;
+        return immediate_ || (!complete && static_cast<uint32_t>(now - last_) >= interval);
+    }
+    void attempted(uint32_t now) {
+        last_ = now;
+        if (attempts_ < 2) ++attempts_;
+        immediate_ = false;
+    }
+private:
+    bool immediate_ = true;
+    bool timeReceived_ = false;
+    unsigned attempts_ = 0;
+    uint32_t last_ = 0;
+    int date_ = 0;
+    int replies_[RowCount] = {};
+};
 int dateOf(const tm& value);
 bool parseDate(const char* text, int& date);
 bool parseTimestamp(const char* text, time_t& utc);
