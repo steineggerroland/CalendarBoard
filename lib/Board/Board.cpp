@@ -87,7 +87,7 @@ uint32_t render(const Row& row, size_t position, const Clock& clock, bool night)
     if (row.displayed.date == clock.date()) {
         tm now = clock.local();
         if (slot != Slot::Empty && position < static_cast<size_t>(now.tm_hour)) color = 0x202020;
-        if (position == static_cast<size_t>(now.tm_hour) && now.tm_sec % 2 == 0) color = 0x8b0000;
+        if (position == static_cast<size_t>(now.tm_hour) && now.tm_sec % 8 < 4) color = 0x8a1005;
     }
     return color;
 }

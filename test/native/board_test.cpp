@@ -78,8 +78,8 @@ int main() {
     Row row; row.receive(day, 0); assert(!row.displayed.available);
     clock.synchronize(t, 0); row.activate(clock.date());
     assert(row.displayed.available);
-    assert(render(row, 14, clock, false) == 0x8b0000);
-    clock.advance(1000); assert(render(row, 14, clock, false) == 0xff0000);
+    assert(render(row, 14, clock, false) == 0x5a4030);
+    clock.advance(4000); assert(render(row, 14, clock, false) == 0xff0000);
     assert(render(row, 14, clock, true) == 0);
     row.receive(day, clock.date()); assert(render(row, 14, clock, false) == 0xff0000);
     clock.advance(3601000); assert(render(row, 14, clock, false) == 0x202020);
