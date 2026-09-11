@@ -1,0 +1,10 @@
+# Add this top-level section to the YAML loaded by the VirtualEntities service.
+# This is a fragment, not a replacement for the complete server configuration.
+calendar_boards:
+  - id: example-board
+    timezone: Europe/Berlin
+    rows:
+      - {id: person1, person: person1}
+      - {id: person2, person: person2}
+      - {id: person3, person: person3}
+      - {id: person4, person: person4}
