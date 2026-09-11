@@ -8,6 +8,9 @@ WiFiClient wlan_client;
 MQTTClient mqtt_client(1024, 256);
 ConnectedHandler connectedHandler;
 
+unsigned long mqtt_last_connect_attempt = 0;
+const unsigned long MQTT_RETRY_INTERVAL_MS = 5000;
+
 void connect();
 
 void setupMqtt(String name, String mqtt_host, String username, String password, MQTTClientCallbackSimple messageHandler,  ConnectedHandler conHandler) {
@@ -23,27 +26,32 @@ void setupMqtt(String name, String mqtt_host, String username, String password, 
 
 void handleMqtt() {
   mqtt_client.loop();
+
   if (!mqtt_client.connected()) {
-    connect();
+    unsigned long now = millis();
+    if (now - mqtt_last_connect_attempt > MQTT_RETRY_INTERVAL_MS) {
+      mqtt_last_connect_attempt = now;
+      connect();
+    }
   }
 }
 
 void connect() {
-  Serial.print("\nMQTT connecting...");
-  int waiting_time = millis();
-  while (!mqtt_client.connect(mqtt_client_id.c_str(), mqtt_username.c_str(), mqtt_password.c_str())) {
-    Serial.print(".");
-    if (millis() - waiting_time > 15000) {
-      Serial.println("Connection Failed! Rebooting...");
-      delay(500);
-      ESP.restart();
-    }
-    delay(1000);
+  if (mqtt_client.connected()) {
+    return;
   }
 
-  Serial.println("\nMQTT connected!");
+  Serial.print("\nMQTT connecting...");
 
-  connectedHandler();
+  if (mqtt_client.connect(mqtt_client_id.c_str(), mqtt_username.c_str(), mqtt_password.c_str())) {
+    Serial.println("\nMQTT connected!");
+    if (connectedHandler != NULL) {
+      connectedHandler();
+    }
+    return;
+  }
+
+  Serial.print(".");
 }
 
 void mqtt_publish(String topic, String message) {
