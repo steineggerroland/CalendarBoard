@@ -5,3 +5,5 @@ src/secrets.h
 .vscode/launch.json
 .vscode/ipch
 upload_params.ini
+# Local board identity and credentials
+include/BoardConfig.h
